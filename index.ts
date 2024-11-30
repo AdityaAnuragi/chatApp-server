@@ -19,14 +19,14 @@ app.get('/', function (req, res) {
 })
 
 io.on('connection', (socket) => {
-  console.log('Aa frontend has connected to the server');
+  console.log('A React app has connected to the server');
 
   socket.on('disconnect', function () {
     console.log("React app left :(");
   });
 
-  socket.on('greet', function (msg) {
-    console.log(msg);
+  socket.on('message', function (sender, msg) {
+    io.emit("message", sender, msg)
   });
 
 })
