@@ -25,8 +25,8 @@ io.on('connection', (socket) => {
     console.log("React app left :(");
   });
 
-  socket.on('message', function (sender, msg) {
-    io.emit("message", sender, msg)
+  socket.on('message', function (sender:string, id:number, msg:string) {
+    io.emit("message", sender, id, msg)
   });
 
 })
