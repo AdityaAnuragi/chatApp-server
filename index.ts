@@ -5,7 +5,16 @@ import { Server } from 'socket.io'
 
 const app = express()
 const server = createServer(app);
-const io = new Server(server, {
+
+type ServerToClientEvents = {
+  message: (sender: string, id: number, message : string) => void;
+}
+
+type ClientToServerEvents = {
+  message: (sender:string, id:number, msg:string) => void
+}
+
+const io = new Server<ServerToClientEvents, ClientToServerEvents>(server, {
   cors: {
     origin: "http://localhost:5173"
   }
@@ -13,10 +22,10 @@ const io = new Server(server, {
 
 // app.use(cors())
 
-app.get('/', function (req, res) {
-  // res.send({name: "aditya"})
-  res.json("aditya")
-})
+// app.get('/', function (req, res) {
+//   // res.send({name: "aditya"})
+//   res.json("aditya")
+// })
 
 io.on('connection', (socket) => {
   console.log('A React app has connected to the server');
