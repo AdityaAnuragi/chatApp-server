@@ -7,7 +7,7 @@ const app = express()
 const server = createServer(app);
 
 type ServerToClientEvents = {
-  message: (sender: string, id: number, message : string) => void;
+  message: (sender: string, id: number, message : string, callback: (response: {status: "ok" | "error"}) => void) => void;
 }
 
 type ClientToServerEvents = {
@@ -31,11 +31,13 @@ io.on('connection', (socket) => {
   console.log('A React app has connected to the server');
 
   socket.on('disconnect', function () {
-    console.log("React app left :(");
+    console.log("A React app left :(");
   });
 
-  socket.on('message', function (sender:string, id:number, msg:string) {
+  socket.on('message', function (sender, id, msg, callback) {
+    console.log(`sender: ${sender} id: ${id} msg: ${msg}`)
     io.emit("message", sender, id, msg)
+    callback({status: "ok"})
   });
 
 })
