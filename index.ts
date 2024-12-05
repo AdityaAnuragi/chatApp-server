@@ -28,7 +28,7 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
 // })
 
 io.on('connection', (socket) => {
-  console.log('React app has connected to the server');
+  console.log('A React app has connected to the server');
 
   socket.on('disconnect', function () {
     console.log("A React app left :(");
