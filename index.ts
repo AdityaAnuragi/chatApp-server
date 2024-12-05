@@ -7,14 +7,14 @@ const app = express()
 const server = createServer(app);
 
 type ServerToClientEvents = {
-  message: (sender: string, id: number, message : string, callback: (response: {status: "ok" | "error"}) => void) => void;
+  message: (sender: string, id: number, msg: string) => void;
 }
 
 type ClientToServerEvents = {
-  message: (sender:string, id:number, msg:string) => void
+  message: (sender: string, id: number, msg: string, callback: (response: { status: "ok" | "error" }) => void) => void
 }
 
-const io = new Server<ServerToClientEvents, ClientToServerEvents>(server, {
+const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
   cors: {
     origin: "http://localhost:5173"
   }
@@ -28,7 +28,7 @@ const io = new Server<ServerToClientEvents, ClientToServerEvents>(server, {
 // })
 
 io.on('connection', (socket) => {
-  console.log('A React app has connected to the server');
+  console.log('React app has connected to the server');
 
   socket.on('disconnect', function () {
     console.log("A React app left :(");
@@ -37,7 +37,7 @@ io.on('connection', (socket) => {
   socket.on('message', function (sender, id, msg, callback) {
     console.log(`sender: ${sender} id: ${id} msg: ${msg}`)
     io.emit("message", sender, id, msg)
-    callback({status: "ok"})
+    callback({ status: "ok" })
   });
 
 })
