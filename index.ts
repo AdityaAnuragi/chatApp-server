@@ -11,7 +11,8 @@ type ServerToClientEvents = {
 }
 
 type ClientToServerEvents = {
-  message: (sender: string, id: number, msg: string, callback: (response: { status: "ok" | "error" }) => void) => void
+  message: (sender:string, id:number, msg:string, selectedGroup: "one" | "two", callback: (response: {status: "ok" | "error"}) => void) => void,
+  joinRoom: (roomName: string) => void
 }
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
@@ -34,11 +35,16 @@ io.on('connection', (socket) => {
     console.log("A React app left :(");
   });
 
-  socket.on('message', function (sender, id, msg, callback) {
-    console.log(`sender: ${sender} id: ${id} msg: ${msg}`)
-    io.emit("message", sender, id, msg)
+  socket.on('message', function (sender, id, msg,selectedGroup, callback) {
+    // console.log(`sender: ${sender} id: ${id} msg: ${msg}`)
+    io.to(selectedGroup).emit("message", sender, id, msg)
     callback({ status: "ok" })
   });
+
+  socket.on("joinRoom", (roomName:string) => {
+    // console.log(`socket attempting to join ${roomName}`)
+    socket.join(roomName)
+  })
 
 })
 
