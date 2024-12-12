@@ -7,7 +7,7 @@ const app = express()
 const server = createServer(app);
 
 type ServerToClientEvents = {
-  message: (sender: string, id: number, msg: string) => void;
+  message: (sender: string, id: number, msg: string, fromGroup: "one" | "two") => void;
 }
 
 type ClientToServerEvents = {
@@ -37,7 +37,7 @@ io.on('connection', (socket) => {
 
   socket.on('message', function (sender, id, msg,selectedGroup, callback) {
     // console.log(`sender: ${sender} id: ${id} msg: ${msg}`)
-    io.to(selectedGroup).emit("message", sender, id, msg)
+    io.to(selectedGroup).emit("message", sender, id, msg, selectedGroup)
     callback({ status: "ok" })
   });
 
