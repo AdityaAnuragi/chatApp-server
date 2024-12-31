@@ -11,7 +11,7 @@ type ServerToClientEvents = {
 }
 
 type ClientToServerEvents = {
-  message: (sender:string, id:number, msg:string, selectedGroup: "one" | "two", callback: (response: {status: "ok" | "error"}) => void) => void,
+  message: (sender:string, id:number, msg:string, selectedGroup: "one" | "two", cryptoId: `${string}-${string}-${string}-${string}-${string}`, callback: (response: {status: "ok" | "error"}, cryptoId: `${string}-${string}-${string}-${string}-${string}`, selectedGroup: "one" | "two" ) => void) => void,
   joinRoom: (roomName: string) => void
 }
 
@@ -35,10 +35,10 @@ io.on('connection', (socket) => {
     console.log("A React app left :(");
   });
 
-  socket.on('message', function (sender, id, msg,selectedGroup, callback) {
+  socket.on('message', function (sender, id, msg, selectedGroup, cryptoId, callback) {
     // console.log(`sender: ${sender} id: ${id} msg: ${msg}`)
     io.to(selectedGroup).emit("message", sender, id, msg, selectedGroup)
-    callback({ status: "ok" })
+    callback({ status: "ok" }, cryptoId, selectedGroup )
   });
 
   socket.on("joinRoom", (roomName:string) => {
