@@ -28,6 +28,14 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
 //   res.json("aditya")
 // })
 
+let number = 12000;
+
+async function wait(millisecond: number) {
+  await new Promise( resolve => {
+    setTimeout(resolve, millisecond)
+  } )
+}
+
 io.on('connection', (socket) => {
   console.log('A React app has connected to the server');
 
@@ -35,9 +43,15 @@ io.on('connection', (socket) => {
     console.log("A React app left :(");
   });
 
-  socket.on('message', function (sender, id, msg, selectedGroup, cryptoId, callback) {
+  socket.on('message', async function (sender, id, msg, selectedGroup, cryptoId, callback) {
     // console.log(`sender: ${sender} id: ${id} msg: ${msg}`)
+    console.log(`Waiting for ${number}ms `)
+    const initialWait = number
+    number = number/2;
+    await wait(number * 2)
+    console.log(`new wait is ${number}ms`)
     io.to(selectedGroup).emit("message", sender, id, msg, selectedGroup)
+    console.log(`received crypto id is ${cryptoId}, with wait = ${initialWait}`)
     callback({ status: "ok" }, cryptoId, selectedGroup )
   });
 
