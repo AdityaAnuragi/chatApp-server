@@ -59,7 +59,7 @@ io.on('connection', (socket) => {
     callback({ status: "ok" }, cryptoId, selectedGroup )
   });
 
-  socket.on("joinRoom", (roomName:string) => {
+  socket.on("joinRoom", (roomName) => {
     // console.log(`socket attempting to join ${roomName}`)
     socket.join(roomName)
   })
