@@ -53,6 +53,10 @@ async function wait(millisecond: number) {
   })
 }
 
+// the query to fetch all the messages that were missed by a user who was offline when the message was sent
+// SELECT TRIM(m.message) AS messages FROM messages m JOIN groupmembers gm ON m.togroupid = gm.groupid WHERE ((m.sent_at_utc > gm.last_opened_utc) AND (m.togroupid IN (SELECT groupid FROM groupmembers WHERE userid = 3)  )  );
+// WHERE 3 is just the unique id of the user;
+
 io.on('connection', (socket) => {
   console.log('A React app has connected to the server');
 
@@ -70,7 +74,7 @@ io.on('connection', (socket) => {
 
     try {
       // database sequence:
-      // cryptoId, msg, id, selectedGroup (kinda), sent_at_utc
+      // cryptoId, msg, id (user id), selectedGroup (group id) (kinda), sent_at_utc
 
       if(initialWait <= 4000) {
         await client.query('INSERT INTO "messages" VALUES ($1, $2, $3, $4, $5)', [cryptoId, msg, 1, 1, '2025-01-01 10:35:00'])
