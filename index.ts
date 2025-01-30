@@ -12,7 +12,8 @@ const app = express()
 const server = createServer(app);
 
 type ServerToClientEvents = {
-  message: (sender: string, id: number, msg: string, fromGroup: "one" | "two") => void;
+  message: (sender: string, id: number, msg: string, fromGroup: "one" | "two") => void,
+  getMissedMessages: (message: any[]) => void
 }
 
 type ClientToServerEvents = {
@@ -53,12 +54,18 @@ async function wait(millisecond: number) {
   })
 }
 
-// the query to fetch all the messages that were missed by a user who was offline when the message was sent
-// SELECT TRIM(m.message) AS messages FROM messages m JOIN groupmembers gm ON m.togroupid = gm.groupid WHERE ((m.sent_at_utc > gm.last_opened_utc) AND (m.togroupid IN (SELECT groupid FROM groupmembers WHERE userid = 3)  )  );
-// WHERE 3 is just the unique id of the user;
+// the query  to fetch all the messages that were missed by a user who was offline when the message was sent
+// SELECT * FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid WHERE ( (gm.userid = 1) AND (m.sent_at_utc > gm.last_opened_utc));
+// WHERE gm.userid = 1 is just the unique id of the user;
 
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
   console.log('A React app has connected to the server');
+
+  const result = await client.query("SELECT * FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid WHERE ( (gm.userid = $1) AND (m.sent_at_utc > gm.last_opened_utc))", [1])
+
+  io.to(socket.id).emit("getMissedMessages", result.rows)
+
+  console.log(result.rows)
 
   socket.on('disconnect', function () {
     console.log("A React app left :(");
@@ -77,8 +84,8 @@ io.on('connection', (socket) => {
       // cryptoId, msg, id (user id), selectedGroup (group id) (kinda), sent_at_utc
 
       if(initialWait <= 4000) {
-        await client.query('INSERT INTO "messages" VALUES ($1, $2, $3, $4, $5)', [cryptoId, msg, 1, 1, '2025-01-01 10:35:00'])
-        console.log("inserted successfully!")
+        await client.query('INSERT INTO "messages" VALUES ($1, $2, $3, $4, $5)', [cryptoId, msg, 1, 1, '2025-01-30 11:26:00'])
+        console.log("inserted successfully! ")
         io.to(selectedGroup).emit("message", sender, id, msg, selectedGroup)
       }
     }
