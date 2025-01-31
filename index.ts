@@ -44,6 +44,11 @@ const client = new Client({
 //   res.json("aditya")
 // })
 
+// TODO - 
+// 1) change the types, server just sends an any[]
+
+// 2) make it dynamic, make the userId work
+
 await client.connect()
 
 let number = 12000;
@@ -59,9 +64,11 @@ async function wait(millisecond: number) {
 // WHERE gm.userid = 1 is just the unique id of the user;
 
 io.on('connection', async (socket) => {
-  console.log('A React app has connected to the server');
-
-  const result = await client.query("SELECT * FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid WHERE ( (gm.userid = $1) AND (m.sent_at_utc > gm.last_opened_utc))", [1])
+  console.log('A React app has connected to the server ');
+  const userId = socket.handshake.query.userId
+  console.log(userId)  
+  // const result = await client.query("SELECT * FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid JOIN users u ON m.fromuserid = u.id  WHERE ( (gm.userid = $1) AND (m.sent_at_utc > gm.last_opened_utc))", [1])
+  const result = await client.query("SELECT TRIM(m.id) AS messageId, TRIM(m.message) AS message, m.fromuserid, m.togroupid, m.sent_at_utc, TRIM(u.name) AS username FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid JOIN users u ON m.fromuserid = u.id  WHERE ( (gm.userid = $1) AND (m.sent_at_utc > gm.last_opened_utc));", [userId])
 
   io.to(socket.id).emit("getMissedMessages", result.rows)
 
