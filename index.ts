@@ -13,7 +13,7 @@ const server = createServer(app);
 
 type ServerToClientEvents = {
   message: (sender: string, id: number, msg: string, fromGroup: "one" | "two") => void,
-  getMissedMessages: (message: any[]) => void
+  getMissedMessages: (message: {[groupId: string]: Omit<Message, "fromusername">[]}) => void
 }
 
 type ClientToServerEvents = {
@@ -47,7 +47,7 @@ const client = new Client({
 // TODO - 
 // 1) change the types, server just sends an any[]
 
-// 2) make it dynamic, make the userId work
+// 2) properly send the data and also use it properly on the frontend
 
 await client.connect()
 
@@ -63,16 +63,53 @@ async function wait(millisecond: number) {
 // SELECT * FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid WHERE ( (gm.userid = 1) AND (m.sent_at_utc > gm.last_opened_utc));
 // WHERE gm.userid = 1 is just the unique id of the user;
 
+type Message = {
+  id: `${string}-${string}-${string}-${string}-${string}`,
+  msg: string,
+  senderId: string,
+  togroupid: string,
+  fromusername: string
+}
+
 io.on('connection', async (socket) => {
   console.log('A React app has connected to the server ');
   const userId = socket.handshake.query.userId
-  console.log(userId)  
-  // const result = await client.query("SELECT * FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid JOIN users u ON m.fromuserid = u.id  WHERE ( (gm.userid = $1) AND (m.sent_at_utc > gm.last_opened_utc))", [1])
-  const result = await client.query("SELECT TRIM(m.id) AS messageId, TRIM(m.message) AS message, m.fromuserid, m.togroupid, m.sent_at_utc, TRIM(u.name) AS username FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid JOIN users u ON m.fromuserid = u.id  WHERE ( (gm.userid = $1) AND (m.sent_at_utc > gm.last_opened_utc));", [userId])
+  console.log(userId)
+  // const result = await client.query("SELECT  * FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid JOIN users u ON m.fromuserid = u.id  WHERE ( (gm.userid = $1) AND (m.sent_at_utc > gm.last_opened_utc))", [1])
+  // const result = await client.query("SELECT TRIM(m.id) AS messageId, TRIM(m.message) AS message, m.fromuserid, m.togroupid, m.sent_at_utc, TRIM(u.name) AS username FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid JOIN users u ON m.fromuserid = u.id  WHERE ( (gm.userid = $1) AND (m.sent_at_utc > gm.last_opened_utc));", [userId])
+  const result = await client.query<Message>("SELECT TRIM(m.id) as id, TRIM(m.message) AS msg, m.fromuserid AS senderID, m.togroupid, TRIM(u.name) AS fromusername FROM messages m JOIN users u ON m.fromuserid = u.id WHERE m.togroupid IN ( SELECT groupid FROM groupmembers WHERE userid = $1)", [userId])
 
-  io.to(socket.id).emit("getMissedMessages", result.rows)
+  // {
+  //   id: 'd0a755d6-0744-4525-949d-f312d4839e53',
+  //   msg: 'another query that user 1 hasnt seen',
+  //   senderid: '2',
+  //   togroupid: '2',
+  //   fromusername: 'Ben'
+  // }
 
-  console.log(result.rows)
+  const groupByArr: {[groupId: string]: Omit<Message, "fromusername">[]} = {}
+
+  result.rows.forEach((value) => {
+    const newVal: Omit<Message, "fromusername"> = {...value}
+    newVal.msg = `${value.fromusername}: ${value.msg}`
+    if(groupByArr[value.togroupid]) {
+      groupByArr[value.togroupid].push(newVal)
+    }
+    else {
+      groupByArr[value.togroupid] = [newVal]
+    }
+  })
+
+  console.log(groupByArr)
+
+  // result.rows.reduce()
+
+  // const foo = Object.groupBy(result.rows, ({ togroupid }) => togroupid)
+  // console.log(foo)
+
+  io.to(socket.id).emit("getMissedMessages", groupByArr)
+
+  // console.log(result.rows)
 
   socket.on('disconnect', function () {
     console.log("A React app left :(");
@@ -90,7 +127,7 @@ io.on('connection', async (socket) => {
       // database sequence:
       // cryptoId, msg, id (user id), selectedGroup (group id) (kinda), sent_at_utc
 
-      if(initialWait <= 4000) {
+      if (initialWait <= 4000) {
         await client.query('INSERT INTO "messages" VALUES ($1, $2, $3, $4, $5)', [cryptoId, msg, 1, 1, '2025-01-30 11:26:00'])
         console.log("inserted successfully! ")
         io.to(selectedGroup).emit("message", sender, id, msg, selectedGroup)
