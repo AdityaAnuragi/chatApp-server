@@ -12,12 +12,13 @@ const app = express()
 const server = createServer(app);
 
 type ServerToClientEvents = {
-  message: (sender: string, id: number, msg: string, fromGroup: "one" | "two") => void,
-  getMissedMessages: (message: {[groupId: string]: Omit<Message, "fromusername" | "togroupid">[]}) => void
+  message: (sender: string, id: number, msg: string, fromGroup: string) => void,
+  getMissedMessages: (message: {[groupId: string]: Omit<Message, "fromusername" | "togroupid">[]}) => void,
+  getGroupIdsAndNames: (groupIdsAndName: {[id: string]: string}) => void
 }
 
 type ClientToServerEvents = {
-  message: (sender: string, id: number, msg: string, selectedGroup: "one" | "two", cryptoId: `${string}-${string}-${string}-${string}-${string}`, callback: (response: { status: "ok" | "error" }, cryptoId: `${string}-${string}-${string}-${string}-${string}`, selectedGroup: "one" | "two") => void) => void,
+  message: (sender: string, id: number, msg: string, selectedGroup: string, cryptoId: `${string}-${string}-${string}-${string}-${string}`, callback: (response: { status: "ok" | "error" }, cryptoId: `${string}-${string}-${string}-${string}-${string}`, selectedGroup: string) => void) => void,
   joinRoom: (roomName: string) => void
 }
 
@@ -45,7 +46,7 @@ const client = new Client({
 // })
 
 // TODO - 
-// 1) change the types, server just sends an any[]
+// 1) change the types, server just sends an  any[]
 
 // 2) properly send the data and also use it properly on the frontend
 
@@ -71,10 +72,37 @@ type Message = {
   fromusername: string
 }
 
+function getDoubleDigitFormat(value: string) {
+  if(value.length === 1) {
+    return `0${value}`
+  }
+  return value
+}
+
+function getTimeStamp() {
+  const date = new Date()
+
+  const theActualMonth = getDoubleDigitFormat(`${Number(date.getUTCMonth()) + 1}`)
+
+  const theActualDate = getDoubleDigitFormat(`${date.getUTCDate()}`)
+
+  const theActualHour = getDoubleDigitFormat(`${date.getUTCHours()}`)
+
+  const theAcutalMinutes = getDoubleDigitFormat(`${date.getUTCMinutes()}`)
+
+  const theActualSeconds = getDoubleDigitFormat(`${date.getUTCSeconds()}`)
+
+  // '2025-01-30 11:26:00 '
+  const timeStamp = `${date.getFullYear()}-${theActualMonth}-${theActualDate} ${theActualHour}:${theAcutalMinutes}:${theActualSeconds}`
+  console.log(timeStamp)
+  return timeStamp
+}
+
 io.on('connection', async (socket) => {
+  getTimeStamp()
   console.log('A React app has connected to the server ');
   const userId = socket.handshake.query.userId
-  console.log(userId)
+  // console.log(userId)
   // const result = await client.query("SELECT  * FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid JOIN users u ON m.fromuserid = u.id  WHERE ( (gm.userid = $1) AND (m.sent_at_utc > gm.last_opened_utc))", [1])
   // const result = await client.query("SELECT TRIM(m.id) AS messageId, TRIM(m.message) AS message, m.fromuserid, m.togroupid, m.sent_at_utc, TRIM(u.name) AS username FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid JOIN users u ON m.fromuserid = u.id  WHERE ( (gm.userid = $1) AND (m.sent_at_utc > gm.last_opened_utc));", [userId])
   const result = await client.query<Message>('SELECT TRIM(m.id) as "id", TRIM(m.message) AS "msg", m.fromuserid AS "senderID", m.togroupid, TRIM(u.name) AS "fromusername" FROM messages m JOIN users u ON m.fromuserid = u.id WHERE m.togroupid IN ( SELECT groupid FROM groupmembers WHERE userid = $1)', [userId])
@@ -100,7 +128,7 @@ io.on('connection', async (socket) => {
     }
   })
 
-  console.log(groupByArr)
+  // console.log(groupByArr)
 
   // result.rows.reduce()
 
@@ -109,7 +137,17 @@ io.on('connection', async (socket) => {
 
   io.to(socket.id).emit("getMissedMessages", groupByArr)
 
-  // console.log(result.rows)
+  const queryGroupIdsAndNamesAsArr = await client.query<{id: string, name: string}>("Select id, TRIM(name) AS name from groups");
+
+  const groupIdsAndNamesAsObj: {[id: string]: string} = {}
+
+  queryGroupIdsAndNamesAsArr.rows.forEach(group => {
+    groupIdsAndNamesAsObj[group.id] = group.name
+  })
+
+  console.log(groupIdsAndNamesAsObj)
+
+  io.to(socket.id).emit("getGroupIdsAndNames", groupIdsAndNamesAsObj)
 
   socket.on('disconnect', function () {
     console.log("A React app left :(");
@@ -128,7 +166,7 @@ io.on('connection', async (socket) => {
       // cryptoId, msg, id (user id), selectedGroup (group id) (kinda), sent_at_utc
 
       if (initialWait <= 4000) {
-        await client.query('INSERT INTO "messages" VALUES ($1, $2, $3, $4, $5)', [cryptoId, msg, id, selectedGroup, '2025-01-30 11:26:00'])
+        await client.query('INSERT INTO "messages" VALUES ($1, $2, $3, $4, $5)', [cryptoId, msg, id, selectedGroup, getTimeStamp()])
         console.log("inserted successfully! ")
         io.to(selectedGroup).emit("message", sender, id, msg, selectedGroup)
       }
