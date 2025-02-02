@@ -14,7 +14,7 @@ const server = createServer(app);
 type ServerToClientEvents = {
   message: (sender: string, id: number, msg: string, fromGroup: string) => void,
   getMissedMessages: (message: {[groupId: string]: Omit<Message, "fromusername" | "togroupid">[]}) => void,
-  getGroupIdsAndNames: (groupIdsAndName: {[id: string]: string}) => void
+  getGroupIdsAndNames: (groupIdsAndName: {[id: string]: {name: string, chatType: "group" | "private"} }) => void
 }
 
 type ClientToServerEvents = {
@@ -137,12 +137,14 @@ io.on('connection', async (socket) => {
 
   io.to(socket.id).emit("getMissedMessages", groupByArr)
 
-  const queryGroupIdsAndNamesAsArr = await client.query<{id: string, name: string}>("Select id, TRIM(name) AS name from groups");
+  const queryGroupIdsAndNamesAsArr = await client.query<{id: string, name: string, chatType: "group" | "private"}>('Select id, TRIM(name) AS name, chat_type AS "chatType" from groups');
 
-  const groupIdsAndNamesAsObj: {[id: string]: string} = {}
+  console.log(queryGroupIdsAndNamesAsArr.rows)
+
+  const groupIdsAndNamesAsObj: Parameters<ServerToClientEvents["getGroupIdsAndNames"]>[0] = {}
 
   queryGroupIdsAndNamesAsArr.rows.forEach(group => {
-    groupIdsAndNamesAsObj[group.id] = group.name
+    groupIdsAndNamesAsObj[group.id] = {name: group.name, chatType: group.chatType}
   })
 
   console.log(groupIdsAndNamesAsObj)
