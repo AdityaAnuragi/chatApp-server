@@ -139,7 +139,7 @@ io.on('connection', async (socket) => {
 
   const queryGroupIdsAndNamesAsArr = await client.query<{id: string, name: string, chatType: "group" | "private"}>('Select id, TRIM(name) AS name, chat_type AS "chatType" from groups');
 
-  console.log(queryGroupIdsAndNamesAsArr.rows)
+  // console.log(queryGroupIdsAndNamesAsArr.rows)
 
   const groupIdsAndNamesAsObj: Parameters<ServerToClientEvents["getGroupIdsAndNames"]>[0] = {}
 
@@ -147,7 +147,7 @@ io.on('connection', async (socket) => {
     groupIdsAndNamesAsObj[group.id] = {name: group.name, chatType: group.chatType}
   })
 
-  console.log(groupIdsAndNamesAsObj)
+  // console.log(groupIdsAndNamesAsObj)
 
   io.to(socket.id).emit("getGroupIdsAndNames", groupIdsAndNamesAsObj)
 
@@ -183,7 +183,7 @@ io.on('connection', async (socket) => {
   });
 
   socket.on("joinRoom", (roomName) => {
-    // console.log(`socket attempting to join ${roomName}`)
+    console.log(`socket attempting to join ${roomName}`)
     socket.join(roomName)
   })
 
