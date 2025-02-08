@@ -1,5 +1,6 @@
 import express from 'express'
-// import cors from 'cors'
+import cors from 'cors'
+import bodyParser from 'body-parser'
 
 import 'dotenv/config'
 
@@ -38,12 +39,11 @@ const client = new Client({
   database: process.env.PGDATABASE,
 })
 
-// app.use(cors())
+let number = 12000;
 
-// app.get('/', function (req, res) {
-//   // res.send({name: "aditya"})
-//   res.json("aditya")
-// })
+app.use(cors())
+app.use(bodyParser.json())
+
 
 // TODO - 
 // 1) change the types, server just sends an  any[]
@@ -52,7 +52,13 @@ const client = new Client({
 
 await client.connect()
 
-let number = 12000;
+app.post('/users', async function (req, res) {
+  // console.log(req.body)
+  const result =  await client.query<{id: number, name: string}>("SELECT id, TRIM(name) as name FROM users WHERE name LIKE $1 ORDER BY id", [`%${req.body.search}%`])
+  console.log(result.rows)
+  res.json(result.rows)
+})
+
 
 async function wait(millisecond: number) {
   await new Promise(resolve => {
@@ -99,7 +105,7 @@ function getTimeStamp() {
 }
 
 io.on('connection', async (socket) => {
-  getTimeStamp()
+  // getTimeStamp()
   console.log('A React app has connected to the server ');
   const userId = socket.handshake.query.userId
   // console.log(userId)
@@ -137,7 +143,7 @@ io.on('connection', async (socket) => {
 
   io.to(socket.id).emit("getMissedMessages", groupByArr)
 
-  const queryGroupIdsAndNamesAsArr = await client.query<{id: string, name: string, chatType: "group" | "private"}>('Select id, TRIM(name) AS name, chat_type AS "chatType" from groups');
+  const queryGroupIdsAndNamesAsArr = await client.query<{id: string, name: string, chatType: "group" | "private"}>('Select id, TRIM(name) AS name, chat_type AS "chatType" from groups ORDER BY create_at_utc DESC');
 
   // console.log(queryGroupIdsAndNamesAsArr.rows)
 
