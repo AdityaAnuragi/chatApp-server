@@ -15,12 +15,14 @@ const server = createServer(app);
 type ServerToClientEvents = {
   message: (sender: string, id: number, msg: string, fromGroup: string) => void,
   getMissedMessages: (message: {[groupId: string]: Omit<Message, "fromusername" | "togroupid">[]}) => void,
-  getGroupIdsAndNames: (groupIdsAndName: {[id: string]: {name: string, chatType: "group" | "private"} }) => void
+  getGroupIdsAndNames: (groupIdsAndName: {[id: string]: {name: string, chatType: "group" | "private"} }) => void,
+  makeUiButDontJoinRoom: (pvtConvId: string,pvtConvoName: string) => void
 }
 
 type ClientToServerEvents = {
   message: (sender: string, id: number, msg: string, selectedGroup: string, cryptoId: `${string}-${string}-${string}-${string}-${string}`, callback: (response: { status: "ok" | "error" }, cryptoId: `${string}-${string}-${string}-${string}-${string}`, selectedGroup: string) => void) => void,
-  joinRoom: (roomName: string) => void
+  joinRoom: (roomName: string) => void,
+  createPvtConvo: (fromId: number,fromName: string, toId:string, toName: string) => void
 }
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
@@ -59,16 +61,20 @@ app.post('/users', async function (req, res) {
   res.json(result.rows)
 })
 
+// app.post('/chats', async function (req, res) {
+  // console.log(req.body)
+  // console.log(req.body)
+  // const result =  await client.query<{id: number, name: string}>("SELECT id, TRIM(name) as name FROM users WHERE name LIKE $1 ORDER BY id", [`%${req.body.search}%`])
+  // console.log(result.rows)
+  // res.json(result.rows)
+// })
+
 
 async function wait(millisecond: number) {
   await new Promise(resolve => {
     setTimeout(resolve, millisecond)
   })
 }
-
-// the query  to fetch all the messages that were missed by a user who was offline when the message was sent
-// SELECT * FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid WHERE ( (gm.userid = 1) AND (m.sent_at_utc > gm.last_opened_utc));
-// WHERE gm.userid = 1 is just the unique id of the user;
 
 type Message = {
   id: `${string}-${string}-${string}-${string}-${string}`,
@@ -104,10 +110,14 @@ function getTimeStamp() {
   return timeStamp
 }
 
+// INSERT INTO groups (name, chat_type, create_at_utc) VALUES ('Aditya,Ben', 'private', '2025-02-09 12:17:00') RETURNING id
+// INSERT INTO groupmembers VALUES (4, 1, '2025-02-09 12:17:00', '2025-02-09 12:17:00')
+
 io.on('connection', async (socket) => {
   // getTimeStamp()
   console.log('A React app has connected to the server ');
-  const userId = socket.handshake.query.userId
+  const userId = socket.handshake.query.userId as string
+  socket.join(`Client${userId}`)
   // console.log(userId)
   // const result = await client.query("SELECT  * FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid JOIN users u ON m.fromuserid = u.id  WHERE ( (gm.userid = $1) AND (m.sent_at_utc > gm.last_opened_utc))", [1])
   // const result = await client.query("SELECT TRIM(m.id) AS messageId, TRIM(m.message) AS message, m.fromuserid, m.togroupid, m.sent_at_utc, TRIM(u.name) AS username FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid JOIN users u ON m.fromuserid = u.id  WHERE ( (gm.userid = $1) AND (m.sent_at_utc > gm.last_opened_utc));", [userId])
@@ -193,12 +203,27 @@ io.on('connection', async (socket) => {
     socket.join(roomName)
   })
 
+  socket.on("createPvtConvo", async (fromId, fromName, toId, toName) => {
+    const theDate = getTimeStamp()
+    const groupId = await client.query<{id: string}>("INSERT INTO groups (name, chat_type, create_at_utc) VALUES ($1, 'private', $2) RETURNING id", [`${fromName},${toName}`, theDate])
+    // INSERT INTO groupmembers VALUES (4, 1, '2025-02-09 12:17:00', '2025-02-09 12:17:00')
+    console.log("the group id is")
+    console.log(groupId.rows[0].id) 
+    await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [groupId.rows[0].id, fromId, theDate, theDate])
+    await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [groupId.rows[0].id, toId, theDate, theDate])
+
+    io.to(`Client${fromId}`).emit("makeUiButDontJoinRoom",groupId.rows[0].id, `${fromName},${toName}`)
+    io.to(`Client${toId}`).emit("makeUiButDontJoinRoom",groupId.rows[0].id, `${fromName},${toName}`)
+    
+
+  })
+
 })
 
 server.listen(3000, () => {
   console.log("Server is live!!")
 })
 
-// console.log("Time to try with the server now!")
+// console.log("Time to try with the server now! ")
 
 // await client.end()
