@@ -22,7 +22,8 @@ type ServerToClientEvents = {
 type ClientToServerEvents = {
   message: (sender: string, id: number, msg: string, selectedGroup: string, cryptoId: `${string}-${string}-${string}-${string}-${string}`, callback: (response: { status: "ok" | "error" }, cryptoId: `${string}-${string}-${string}-${string}-${string}`, selectedGroup: string) => void) => void,
   joinRoom: (roomName: string) => void,
-  createPvtConvo: (fromId: number,fromName: string, toId:string, toName: string) => void
+  createPvtConvo: (fromId: number,fromName: string, toId:string, toName: string) => void,
+  createGroup: (groupName: string, fromUserId: string) => void
 }
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
@@ -214,8 +215,13 @@ io.on('connection', async (socket) => {
 
     io.to(`Client${fromId}`).emit("makeClientJoinRoom",groupId.rows[0].id, `${fromName},${toName}`)
     io.to(`Client${toId}`).emit("makeClientJoinRoom",groupId.rows[0].id, `${fromName},${toName}`)
-    
-    
+  })
+
+  socket.on("createGroup", async (groupName, fromUserId) => {
+    const theDate = getTimeStamp()
+    const newGroupId = await client.query<{id: string}>("INSERT INTO groups (name, chat_type, create_at_utc) VALUES ($1, $2, $3) RETURNING id", [groupName, "group", theDate])
+    // console.log(newGroupId.rows[0].id)
+    await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [newGroupId.rows[0].id, fromUserId, theDate, theDate])
   })
 
 })
