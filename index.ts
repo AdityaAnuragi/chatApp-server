@@ -16,7 +16,7 @@ type ServerToClientEvents = {
   message: (sender: string, id: number, msg: string, fromGroup: string) => void,
   getMissedMessages: (message: {[groupId: string]: Omit<Message, "fromusername" | "togroupid">[]}) => void,
   getGroupIdsAndNames: (groupIdsAndName: {[id: string]: {name: string, chatType: "group" | "private"} }) => void,
-  makeUiButDontJoinRoom: (pvtConvId: string,pvtConvoName: string) => void
+  makeClientJoinRoom: (pvtConvId: string,pvtConvoName: string) => void
 }
 
 type ClientToServerEvents = {
@@ -212,10 +212,10 @@ io.on('connection', async (socket) => {
     await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [groupId.rows[0].id, fromId, theDate, theDate])
     await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [groupId.rows[0].id, toId, theDate, theDate])
 
-    io.to(`Client${fromId}`).emit("makeUiButDontJoinRoom",groupId.rows[0].id, `${fromName},${toName}`)
-    io.to(`Client${toId}`).emit("makeUiButDontJoinRoom",groupId.rows[0].id, `${fromName},${toName}`)
+    io.to(`Client${fromId}`).emit("makeClientJoinRoom",groupId.rows[0].id, `${fromName},${toName}`)
+    io.to(`Client${toId}`).emit("makeClientJoinRoom",groupId.rows[0].id, `${fromName},${toName}`)
     
-
+    
   })
 
 })
