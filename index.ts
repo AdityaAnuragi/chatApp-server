@@ -24,7 +24,7 @@ type ClientToServerEvents = {
   joinRoom: (roomName: string) => void,
   createPvtConvo: (fromId: number,fromName: string, toId:string, toName: string) => void,
   createGroup: (groupName: string, fromUserId: string) => void,
-  inviteUserToGroup: (groupId: string, userId: string) => void
+  inviteUserToGroup: (groupId: string, userId: string, groupName: string) => void
 }
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
@@ -155,7 +155,7 @@ io.on('connection', async (socket) => {
 
   io.to(socket.id).emit("getMissedMessages", groupByArr)
 
-  const queryGroupIdsAndNamesAsArr = await client.query<{id: string, name: string, chatType: "group" | "private"}>('Select id, TRIM(name) AS name, chat_type AS "chatType" from groups ORDER BY create_at_utc DESC');
+  const queryGroupIdsAndNamesAsArr = await client.query<{id: string, name: string, chatType: "group" | "private"}>('Select id, TRIM(name) AS name, chat_type AS "chatType" from groups WHERE id IN (SELECT groupid FROM groupmembers WHERE userid = $1) ORDER BY create_at_utc DESC', [userId]);
 
   // console.log(queryGroupIdsAndNamesAsArr.rows)
 
@@ -227,9 +227,10 @@ io.on('connection', async (socket) => {
     io.to(`Client${fromUserId}`).emit("makeClientJoinRoom", newGroupId.rows[0].id, groupName, "group")  
   })
 
-  socket.on("inviteUserToGroup", async (groupId, userId) => {
+  socket.on("inviteUserToGroup", async (groupId, userId, groupName) => {
     const theDate = getTimeStamp()
     await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [Number(groupId), Number(userId),theDate, theDate] )
+    io.to(`Client${userId}`).emit("makeClientJoinRoom", groupId, groupName,"group")
   })
 
 })
@@ -238,6 +239,6 @@ server.listen(3000, () => {
   console.log("Server is live!!")
 })
 
-// console.log("Time to try with the server now! ")
+// console.log("Time to try with the server now!")
 
 // await client.end()
