@@ -58,7 +58,7 @@ await client.connect()
 
 app.post('/users', async function (req, res) {
   // console.log(req.body)
-  const result =  await client.query<{id: number, name: string}>("SELECT id, TRIM(name) as name FROM users WHERE name LIKE $1 ORDER BY id", [`%${req.body.search}%`])
+  const result =  await client.query<{id: number, name: string}>("SELECT id, TRIM(name) as name FROM users WHERE name ILIKE $1 ORDER BY id", [`%${req.body.search}%`])
   console.log(result.rows)
   res.json(result.rows)
 })
