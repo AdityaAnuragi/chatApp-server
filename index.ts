@@ -1,7 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
-
+import bcrypt from "bcrypt"
 import 'dotenv/config'
 
 import pg from "pg"
@@ -62,6 +62,24 @@ app.post('/users', async function (req, res) {
   console.log(result.rows)
   res.json(result.rows)
 })
+
+app.post("/signup", async (req, res) => {
+  const result = await client.query<{count: string}>("SELECT count(*) FROM users WHERE name = $1", [req.body.name])
+  if(result.rows[0].count !== '0' ) {
+    res.sendStatus(406)
+  }
+  else {
+    const salt = await bcrypt.genSalt()
+    const hash = await bcrypt.hash("my super secure password",salt)
+    // console.log(`Salt: ${salt}`)
+    // console.log(`Hash: ${hash}`)
+    const userIdObj = await client.query<{id: string}>("INSERT INTO users (name, salt, hash) VALUES ($1, $2, $3) RETURNING id", [req.body.name, salt, hash])
+    const userId = userIdObj.rows[0].id
+    res.status(200).json(userId)
+  }
+})
+
+
 
 // app.post('/chats', async function (req, res) {
   // console.log(req.body)
