@@ -70,7 +70,8 @@ app.post("/signup", async (req, res) => {
   }
   else {
     const salt = await bcrypt.genSalt()
-    const hash = await bcrypt.hash("my super secure password",salt)
+    const saltAndPassword = req.body.password + salt
+    const hash = await bcrypt.hash(saltAndPassword, 10)
     // console.log(`Salt: ${salt}`)
     // console.log(`Hash: ${hash}`)
     const userIdObj = await client.query<{id: string}>("INSERT INTO users (name, salt, hash) VALUES ($1, $2, $3) RETURNING id", [req.body.name, salt, hash])
@@ -79,7 +80,23 @@ app.post("/signup", async (req, res) => {
   }
 })
 
+app.post("/signin", async (req, res) => {
+  console.log(req.body.name)
+  const result = await client.query<{id:string, salt: string, hash:string}>("SELECT id, TRIM(salt) as salt, TRIM(hash) as hash FROM users WHERE name = $1", [req.body.name])
+  const salt = result.rows[0].salt
+  const hash = result.rows[0].hash
+  console.log(`provided password = ${req.body.password}`)
+  const isCorrect = await bcrypt.compare(`${req.body.password + salt}`, hash)
 
+  if(isCorrect) {
+    res.status(200).json(result.rows[0].id)
+  }
+
+  else {
+    res.sendStatus(401)
+  }
+
+})
 
 // app.post('/chats', async function (req, res) {
   // console.log(req.body)
