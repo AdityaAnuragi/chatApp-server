@@ -274,6 +274,10 @@ io.on('connection', async (socket) => {
 
 })
 
+app.get("/health", (req, res) => {
+  res.sendStatus(200)
+})
+
 server.listen(Number(process.env.PORT) || 3000,"0.0.0.0", () => {
   console.log("Server is live!!")
 })
