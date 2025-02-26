@@ -29,7 +29,7 @@ type ClientToServerEvents = {
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
   cors: {
-    origin: ["https://chatapp-frontend-8goo.onrender.com", "http:localhost:5173", /.*devtunnels\.ms$/]
+    origin: ["https://chatapp-frontend-8goo.onrender.com", "http://localhost:5173", /.*devtunnels\.ms$/]
   }
 })
 
