@@ -43,7 +43,7 @@ const client = new Client({
   database: process.env.PGDATABASE,
 })
 
-let number = 12000;
+let number = 0;
 
 app.use(cors())
 app.use(bodyParser.json())
