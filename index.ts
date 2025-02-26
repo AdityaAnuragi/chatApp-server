@@ -41,6 +41,7 @@ const client = new Client({
   host: process.env.PGHOST,
   port: Number(process.env.PGPORT),
   database: process.env.PGDATABASE,
+  ssl: true
 })
 
 let number = 0;
@@ -54,7 +55,10 @@ app.use(bodyParser.json())
 
 // 2) properly send the data and also use it properly on the frontend
 
-await client.connect()
+await client.connect().catch(e => {
+  console.log("There was an error connection to the DB")
+  console.error(e)
+})
 
 app.post('/users', async function (req, res) {
   // console.log(req.body)
