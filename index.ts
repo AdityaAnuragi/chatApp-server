@@ -29,7 +29,7 @@ type ClientToServerEvents = {
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
   cors: {
-    origin: ["https://chatapp-frontend-8goo.onrender.com", "http://localhost:5173", /.*devtunnels\.ms$/]
+    origin: ["https://chatapp-frontend-8goo.onrender.com/", "http://localhost:5173", /.*devtunnels\.ms$/]
   }
 })
 
@@ -77,6 +77,7 @@ app.post('/users', async function (req, res) {
 
 app.post("/signup", async (req, res) => {
   const result = await client.query<{count: string}>("SELECT count(*) FROM users WHERE name = $1", [req.body.name])
+  // throw new Error("test");
   if(result.rows[0].count !== '0' ) {
     res.sendStatus(406)
   }
@@ -193,7 +194,7 @@ io.on('connection', async (socket) => {
     }
   })
 
-  // console.log(groupByArr)
+  console.log(groupByArr)
 
   // result.rows.reduce()
 
