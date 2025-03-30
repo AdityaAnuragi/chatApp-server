@@ -36,12 +36,17 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
 const { Client } = pg
 
 const client = new Client({
-  user: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
-  host: process.env.PGHOST,
-  port: Number(process.env.PGPORT),
-  database: process.env.PGDATABASE,
+  // user: process.env.PGUSER,
+  // password: process.env.PGPASSWORD,
+  // host: process.env.PGHOST,
+  // port: Number(process.env.PGPORT),
+  // database: process.env.PGDATABASE,
+  // connectionString
+  // ssl: true
+
+  connectionString: process.env.connectionString,
   ssl: true
+
 })
 
 let number = 0;
@@ -59,6 +64,9 @@ await client.connect().catch(e => {
   console.log("There was an error connection to the DB")
   console.error(e)
 })
+
+// const result  = await client.query("SELECT id, TRIM(name) AS name FROM users");
+// console.table(result.rows)
 
 app.post('/users', async function (req, res) {
   // console.log(req.body)
