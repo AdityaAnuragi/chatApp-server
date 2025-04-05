@@ -14,15 +14,15 @@ const server = createServer(app);
 
 type ServerToClientEvents = {
   message: (sender: string, id: number, msg: string, fromGroup: string) => void,
-  getMissedMessages: (message: {[groupId: string]: Omit<Message, "fromusername" | "togroupid">[]}) => void,
-  getGroupIdsAndNames: (groupIdsAndName: {[id: string]: {name: string, chatType: "group" | "private"} }) => void,
-  makeClientJoinRoom: (pvtConvId: string,pvtConvoName: string, chatType: "group" | "private") => void
+  getMissedMessages: (message: { [groupId: string]: Omit<Message, "fromusername" | "togroupid">[] }) => void,
+  getGroupIdsAndNames: (groupIdsAndName: { [id: string]: { name: string, chatType: "group" | "private" } }) => void,
+  makeClientJoinRoom: (pvtConvId: string, pvtConvoName: string, chatType: "group" | "private") => void
 }
 
 type ClientToServerEvents = {
   message: (sender: string, id: number, msg: string, selectedGroup: string, cryptoId: `${string}-${string}-${string}-${string}-${string}`, callback: (response: { status: "ok" | "error" }, cryptoId: `${string}-${string}-${string}-${string}-${string}`, selectedGroup: string) => void) => void,
   joinRoom: (roomName: string) => void,
-  createPvtConvo: (fromId: number,fromName: string, toId:string, toName: string) => void,
+  createPvtConvo: (fromId: number, fromName: string, toId: string, toName: string) => void,
   createGroup: (groupName: string, fromUserId: string) => void,
   inviteUserToGroup: (groupId: string, userId: string, groupName: string) => void
 }
@@ -70,15 +70,33 @@ await client.connect().catch(e => {
 
 app.post('/users', async function (req, res) {
   // console.log(req.body)
-  const result =  await client.query<{id: number, name: string}>("SELECT id, TRIM(name) as name FROM users WHERE name ILIKE $1 ORDER BY id", [`%${req.body.search}%`])
+  let result: pg.QueryResult<{
+    id: number;
+    name: string;
+  }> | undefined = undefined;
+  try {
+    result = await client.query<{ id: number, name: string }>("SELECT id, TRIM(name) as name FROM users WHERE name ILIKE $1 ORDER BY id", [`%${req.body.search}%`])
+  }
+  catch {
+    res.sendStatus(500)
+  }
   // console.log(result.rows)
-  res.json(result.rows)
+  res.json(result?.rows)
 })
 
 app.post("/signup", async (req, res) => {
-  const result = await client.query<{count: string}>("SELECT count(*) FROM users WHERE name = $1", [req.body.name])
+  let result: pg.QueryResult<{
+    count: string;
+  }> | undefined = undefined;
+  try {
+    result = await client.query<{ count: string }>("SELECT count(*) FROM users WHERE name = $1", [req.body.name])
+
+  }
+  catch {
+    res.sendStatus(500)
+  }
   // throw new Error("test");
-  if(result.rows[0].count !== '0' ) {
+  if (result?.rows[0].count !== '0') {
     res.sendStatus(406)
   }
   else {
@@ -87,7 +105,7 @@ app.post("/signup", async (req, res) => {
     const hash = await bcrypt.hash(saltAndPassword, 10)
     // console.log(`Salt: ${salt}`)
     // console.log(`Hash: ${hash}`)
-    const userIdObj = await client.query<{id: string}>("INSERT INTO users (name, salt, hash) VALUES ($1, $2, $3) RETURNING id", [req.body.name, salt, hash])
+    const userIdObj = await client.query<{ id: string }>("INSERT INTO users (name, salt, hash) VALUES ($1, $2, $3) RETURNING id", [req.body.name, salt, hash])
     const userId = userIdObj.rows[0].id
     res.status(200).json(userId)
   }
@@ -95,14 +113,24 @@ app.post("/signup", async (req, res) => {
 
 app.post("/signin", async (req, res) => {
   console.log(req.body.name)
-  const result = await client.query<{id:string, salt: string, hash:string}>("SELECT id, TRIM(salt) as salt, TRIM(hash) as hash FROM users WHERE name = $1", [req.body.name])
-  const salt = result.rows[0].salt
-  const hash = result.rows[0].hash
+  let result: pg.QueryResult<{
+    id: string;
+    salt: string;
+    hash: string;
+  }> | undefined = undefined
+  try {
+    result = await client.query<{ id: string, salt: string, hash: string }>("SELECT id, TRIM(salt) as salt, TRIM(hash) as hash FROM users WHERE name = $1", [req.body.name])
+  }
+  catch {
+    res.sendStatus(500)
+  }
+  const salt = result?.rows[0].salt
+  const hash = result?.rows[0].hash
   // console.log(`provided password = ${req.body.password}`)
-  const isCorrect = await bcrypt.compare(`${req.body.password + salt}`, hash)
+  const isCorrect = await bcrypt.compare(`${req.body.password + salt}`, hash!)
 
-  if(isCorrect) {
-    res.status(200).json(result.rows[0].id)
+  if (isCorrect) {
+    res.status(200).json(result?.rows[0].id)
   }
 
   else {
@@ -112,11 +140,11 @@ app.post("/signin", async (req, res) => {
 })
 
 // app.post('/chats', async function (req, res) {
-  // console.log(req.body)
-  // console.log(req.body)
-  // const result =  await client.query<{id: number, name: string}>("SELECT id, TRIM(name) as name FROM users WHERE name LIKE $1 ORDER BY id", [`%${req.body.search}%`])
-  // console.log(result.rows)
-  // res.json(result.rows)
+// console.log(req.body)
+// console.log(req.body)
+// const result =  await client.query<{id: number, name: string}>("SELECT id, TRIM(name) as name FROM users WHERE name LIKE $1 ORDER BY id", [`%${req.body.search}%`])
+// console.log(result.rows)
+// res.json(result.rows)
 // })
 
 
@@ -135,7 +163,7 @@ type Message = {
 }
 
 function getDoubleDigitFormat(value: string) {
-  if(value.length === 1) {
+  if (value.length === 1) {
     return `0${value}`
   }
   return value
@@ -181,12 +209,12 @@ io.on('connection', async (socket) => {
   //   fromusername: 'Ben'
   // }
 
-  const groupByArr: {[groupId: string]: Omit<Message, "fromusername" | "togroupid">[]} = {}
+  const groupByArr: { [groupId: string]: Omit<Message, "fromusername" | "togroupid">[] } = {}
 
   result.rows.forEach((value) => {
-    const newVal: Omit<Message, "fromusername" | "togroupid"> = {id: value.id, msg: value.msg, senderID: Number(value.senderID) }
+    const newVal: Omit<Message, "fromusername" | "togroupid"> = { id: value.id, msg: value.msg, senderID: Number(value.senderID) }
     newVal.msg = `${value.fromusername}: ${value.msg}`
-    if(groupByArr[value.togroupid]) {
+    if (groupByArr[value.togroupid]) {
       groupByArr[value.togroupid].push(newVal)
     }
     else {
@@ -203,14 +231,14 @@ io.on('connection', async (socket) => {
 
   io.to(socket.id).emit("getMissedMessages", groupByArr)
 
-  const queryGroupIdsAndNamesAsArr = await client.query<{id: string, name: string, chatType: "group" | "private"}>('Select id, TRIM(name) AS name, chat_type AS "chatType" from groups WHERE id IN (SELECT groupid FROM groupmembers WHERE userid = $1) ORDER BY create_at_utc DESC', [userId]);
+  const queryGroupIdsAndNamesAsArr = await client.query<{ id: string, name: string, chatType: "group" | "private" }>('Select id, TRIM(name) AS name, chat_type AS "chatType" from groups WHERE id IN (SELECT groupid FROM groupmembers WHERE userid = $1) ORDER BY create_at_utc DESC', [userId]);
 
   // console.log(queryGroupIdsAndNamesAsArr.rows)
 
   const groupIdsAndNamesAsObj: Parameters<ServerToClientEvents["getGroupIdsAndNames"]>[0] = {}
 
   queryGroupIdsAndNamesAsArr.rows.forEach(group => {
-    groupIdsAndNamesAsObj[group.id] = {name: group.name, chatType: group.chatType}
+    groupIdsAndNamesAsObj[group.id] = { name: group.name, chatType: group.chatType }
   })
 
   // console.log(groupIdsAndNamesAsObj)
@@ -255,30 +283,30 @@ io.on('connection', async (socket) => {
 
   socket.on("createPvtConvo", async (fromId, fromName, toId, toName) => {
     const theDate = getTimeStamp()
-    const groupId = await client.query<{id: string}>("INSERT INTO groups (name, chat_type, create_at_utc) VALUES ($1, 'private', $2) RETURNING id", [`${fromName},${toName}`, theDate])
+    const groupId = await client.query<{ id: string }>("INSERT INTO groups (name, chat_type, create_at_utc) VALUES ($1, 'private', $2) RETURNING id", [`${fromName},${toName}`, theDate])
     // INSERT INTO groupmembers VALUES (4, 1, '2025-02-09 12:17:00', '2025-02-09 12:17:00')
     // console.log("the group id is")
     // console.log(groupId.rows[0].id) 
     await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [groupId.rows[0].id, fromId, theDate, theDate])
     await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [groupId.rows[0].id, toId, theDate, theDate])
 
-    io.to(`Client${fromId}`).emit("makeClientJoinRoom",groupId.rows[0].id, `${fromName},${toName}`, "private")
-    io.to(`Client${toId}`).emit("makeClientJoinRoom",groupId.rows[0].id, `${fromName},${toName}`, "private")
+    io.to(`Client${fromId}`).emit("makeClientJoinRoom", groupId.rows[0].id, `${fromName},${toName}`, "private")
+    io.to(`Client${toId}`).emit("makeClientJoinRoom", groupId.rows[0].id, `${fromName},${toName}`, "private")
   })
 
   socket.on("createGroup", async (groupName, fromUserId) => {
     const theDate = getTimeStamp()
-    const newGroupId = await client.query<{id: string}>("INSERT INTO groups (name, chat_type, create_at_utc) VALUES ($1, $2, $3) RETURNING id", [groupName, "group", theDate])
+    const newGroupId = await client.query<{ id: string }>("INSERT INTO groups (name, chat_type, create_at_utc) VALUES ($1, $2, $3) RETURNING id", [groupName, "group", theDate])
     // console.log(newGroupId.rows[0].id)
     await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [newGroupId.rows[0].id, fromUserId, theDate, theDate])
 
-    io.to(`Client${fromUserId}`).emit("makeClientJoinRoom", newGroupId.rows[0].id, groupName, "group")  
+    io.to(`Client${fromUserId}`).emit("makeClientJoinRoom", newGroupId.rows[0].id, groupName, "group")
   })
 
   socket.on("inviteUserToGroup", async (groupId, userId, groupName) => {
     const theDate = getTimeStamp()
-    await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [Number(groupId), Number(userId),theDate, theDate] )
-    io.to(`Client${userId}`).emit("makeClientJoinRoom", groupId, groupName,"group")
+    await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [Number(groupId), Number(userId), theDate, theDate])
+    io.to(`Client${userId}`).emit("makeClientJoinRoom", groupId, groupName, "group")
   })
 
 })
@@ -287,7 +315,7 @@ app.get("/health", (req, res) => {
   res.sendStatus(200)
 })
 
-server.listen(Number(process.env.PORT) || 3000,"0.0.0.0", () => {
+server.listen(Number(process.env.PORT) || 3000, "0.0.0.0", () => {
   console.log("Server is live!!")
 })
 
