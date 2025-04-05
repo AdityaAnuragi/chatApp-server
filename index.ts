@@ -71,7 +71,7 @@ await client.connect().catch(e => {
 app.post('/users', async function (req, res) {
   // console.log(req.body)
   const result =  await client.query<{id: number, name: string}>("SELECT id, TRIM(name) as name FROM users WHERE name ILIKE $1 ORDER BY id", [`%${req.body.search}%`])
-  console.log(result.rows)
+  // console.log(result.rows)
   res.json(result.rows)
 })
 
@@ -98,7 +98,7 @@ app.post("/signin", async (req, res) => {
   const result = await client.query<{id:string, salt: string, hash:string}>("SELECT id, TRIM(salt) as salt, TRIM(hash) as hash FROM users WHERE name = $1", [req.body.name])
   const salt = result.rows[0].salt
   const hash = result.rows[0].hash
-  console.log(`provided password = ${req.body.password}`)
+  // console.log(`provided password = ${req.body.password}`)
   const isCorrect = await bcrypt.compare(`${req.body.password + salt}`, hash)
 
   if(isCorrect) {
@@ -156,7 +156,7 @@ function getTimeStamp() {
 
   // '2025-01-30 11:26:00 '
   const timeStamp = `${date.getFullYear()}-${theActualMonth}-${theActualDate} ${theActualHour}:${theAcutalMinutes}:${theActualSeconds}`
-  console.log(timeStamp)
+  // console.log(timeStamp)
   return timeStamp
 }
 
@@ -194,7 +194,7 @@ io.on('connection', async (socket) => {
     }
   })
 
-  console.log(groupByArr)
+  // console.log(groupByArr)
 
   // result.rows.reduce()
 
@@ -223,11 +223,11 @@ io.on('connection', async (socket) => {
 
   socket.on('message', async function (sender, id, msg, selectedGroup, cryptoId, callback) {
     // console.log(`sender: ${sender} id: ${id} msg: ${msg}`)
-    console.log(`Waiting for ${number}ms`)
+    // console.log(`Waiting for ${number}ms`)
     const initialWait = number
     number = number / 2;
     await wait(number * 2)
-    console.log(`new wait is ${number}ms`)
+    // console.log(`new wait is ${number}ms`)
 
     try {
       // database sequence:
@@ -235,16 +235,16 @@ io.on('connection', async (socket) => {
 
       if (initialWait <= 4000) {
         await client.query('INSERT INTO "messages" VALUES ($1, $2, $3, $4, $5)', [cryptoId, msg, id, selectedGroup, getTimeStamp()])
-        console.log("inserted successfully! ")
+        // console.log("inserted successfully! ")
         io.to(selectedGroup).emit("message", sender, id, msg, selectedGroup)
       }
     }
     catch (error) {
-      console.log(error)
-      console.log("there was an error")
+      // console.log(error)
+      console.log("there was an error in sending the message")
     }
 
-    console.log(`received crypto id is ${cryptoId}, with wait = ${initialWait}`)
+    // console.log(`received crypto id is ${cryptoId}, with wait = ${initialWait}`)
     callback({ status: "ok" }, cryptoId, selectedGroup)
   });
 
@@ -257,8 +257,8 @@ io.on('connection', async (socket) => {
     const theDate = getTimeStamp()
     const groupId = await client.query<{id: string}>("INSERT INTO groups (name, chat_type, create_at_utc) VALUES ($1, 'private', $2) RETURNING id", [`${fromName},${toName}`, theDate])
     // INSERT INTO groupmembers VALUES (4, 1, '2025-02-09 12:17:00', '2025-02-09 12:17:00')
-    console.log("the group id is")
-    console.log(groupId.rows[0].id) 
+    // console.log("the group id is")
+    // console.log(groupId.rows[0].id) 
     await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [groupId.rows[0].id, fromId, theDate, theDate])
     await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [groupId.rows[0].id, toId, theDate, theDate])
 
@@ -293,4 +293,4 @@ server.listen(Number(process.env.PORT) || 3000,"0.0.0.0", () => {
 
 // console.log("Time to try with the server now!")
 
-// await client.end()
+await client.end()
