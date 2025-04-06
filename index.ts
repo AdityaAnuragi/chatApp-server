@@ -65,6 +65,15 @@ await client.connect().catch(e => {
   console.error(e)
 })
 
+client.on('error', (err) => {
+  console.log('client error event triggered')
+  console.log(err)
+})
+
+client.on("end", () => {
+  console.log("client has ended")
+})
+
 // const result  = await client.query("SELECT id, TRIM(name) AS name FROM users");
 // console.table(result.rows)
 
