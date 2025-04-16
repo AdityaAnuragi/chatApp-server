@@ -4,7 +4,7 @@ import bodyParser from 'body-parser'
 import bcrypt from "bcrypt"
 import 'dotenv/config'
 
-import pg, { Pool } from "pg"
+import pg from "pg"
 
 import { createServer } from 'node:http';
 import { Server } from 'socket.io'
@@ -33,7 +33,8 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
   }
 })
 
-const { Client } = pg
+// const { Client } = pg
+const { Pool } = pg;
 
 const client = new Pool({
   // user: process.env.PGUSER,
