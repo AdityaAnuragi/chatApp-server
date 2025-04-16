@@ -4,7 +4,7 @@ import bodyParser from 'body-parser'
 import bcrypt from "bcrypt"
 import 'dotenv/config'
 
-import pg from "pg"
+import pg, { Pool } from "pg"
 
 import { createServer } from 'node:http';
 import { Server } from 'socket.io'
@@ -35,7 +35,7 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
 
 const { Client } = pg
 
-const client = new Client({
+const client = new Pool({
   // user: process.env.PGUSER,
   // password: process.env.PGPASSWORD,
   // host: process.env.PGHOST,
@@ -70,9 +70,9 @@ client.on('error', (err) => {
   console.log(err)
 })
 
-client.on("end", () => {
-  console.log("client has ended")
-})
+// client.on("end", () => {
+//   console.log("client has ended")
+// })
 
 // const result  = await client.query("SELECT id, TRIM(name) AS name FROM users");
 // console.table(result.rows)
