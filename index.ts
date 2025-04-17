@@ -36,7 +36,7 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
 // const { Client } = pg
 const { Pool } = pg;
 
-const client = new Pool({
+const pool = new Pool({
   // user: process.env.PGUSER,
   // password: process.env.PGPASSWORD,
   // host: process.env.PGHOST,
@@ -46,7 +46,7 @@ const client = new Pool({
   // ssl: true
 
   connectionString: process.env.connectionString,
-  min: 1,
+  min: 5,
   max: 10,
   ssl: true
 
@@ -57,21 +57,24 @@ let number = 0;
 app.use(cors())
 app.use(bodyParser.json())
 
+const result = await pool.query("Select * from users")
+console.log(result)
+pool.on('error', (err) => {
+  console.log('client error event triggered')
+  console.log(err)
+})
 
 // TODO - 
 // 1) change the types, server just sends an  any[]
 
 // 2) properly send the data and also use it properly on the frontend
+// await client.connect().then(client => {
 
-await client.connect().catch(e => {
-  console.log("There was an error connection to the DB")
-  console.error(e)
-})
+// }).catch(e => {
+//   console.log("There was an error connection to the DB")
+//   console.error(e)
+// })
 
-client.on('error', (err) => {
-  console.log('client error event triggered')
-  console.log(err)
-})
 
 // client.on("end", () => {
 //   console.log("client has ended")
@@ -87,7 +90,7 @@ app.post('/users', async function (req, res) {
     name: string;
   }> | undefined = undefined;
   try {
-    result = await client.query<{ id: number, name: string }>("SELECT id, TRIM(name) as name FROM users WHERE name ILIKE $1 ORDER BY id", [`%${req.body.search}%`])
+    result = await pool.query<{ id: number, name: string }>("SELECT id, TRIM(name) as name FROM users WHERE name ILIKE $1 ORDER BY id", [`%${req.body.search}%`])
   }
   catch (e) {
     console.log("users")
@@ -103,7 +106,7 @@ app.post("/signup", async (req, res) => {
     count: string;
   }> | undefined = undefined;
   try {
-    result = await client.query<{ count: string }>("SELECT count(*) FROM users WHERE name = $1", [req.body.name])
+    result = await pool.query<{ count: string }>("SELECT count(*) FROM users WHERE name = $1", [req.body.name])
 
   }
   catch (e) {
@@ -121,7 +124,7 @@ app.post("/signup", async (req, res) => {
     const hash = await bcrypt.hash(saltAndPassword, 10)
     // console.log(`Salt: ${salt}`)
     // console.log(`Hash: ${hash}`)
-    const userIdObj = await client.query<{ id: string }>("INSERT INTO users (name, salt, hash) VALUES ($1, $2, $3) RETURNING id", [req.body.name, salt, hash])
+    const userIdObj = await pool.query<{ id: string }>("INSERT INTO users (name, salt, hash) VALUES ($1, $2, $3) RETURNING id", [req.body.name, salt, hash])
     const userId = userIdObj.rows[0].id
     res.status(200).json(userId)
   }
@@ -135,7 +138,7 @@ app.post("/signin", async (req, res) => {
     hash: string;
   }> | undefined = undefined
   try {
-    result = await client.query<{ id: string, salt: string, hash: string }>("SELECT id, TRIM(salt) as salt, TRIM(hash) as hash FROM users WHERE name = $1", [req.body.name])
+    result = await pool.query<{ id: string, salt: string, hash: string }>("SELECT id, TRIM(salt) as salt, TRIM(hash) as hash FROM users WHERE name = $1", [req.body.name])
   }
   catch (e) {
     console.log("sign in")
@@ -217,7 +220,7 @@ io.on('connection', async (socket) => {
   // console.log(userId)
   // const result = await client.query("SELECT  * FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid JOIN users u ON m.fromuserid = u.id  WHERE ( (gm.userid = $1) AND (m.sent_at_utc > gm.last_opened_utc))", [1])
   // const result = await client.query("SELECT TRIM(m.id) AS messageId, TRIM(m.message) AS message, m.fromuserid, m.togroupid, m.sent_at_utc, TRIM(u.name) AS username FROM messages m JOIN groupmembers gm ON gm.groupid = m.togroupid JOIN users u ON m.fromuserid = u.id  WHERE ( (gm.userid = $1) AND (m.sent_at_utc > gm.last_opened_utc));", [userId])
-  const result = await client.query<Message>('SELECT TRIM(m.id) as "id", TRIM(m.message) AS "msg", m.fromuserid AS "senderID", m.togroupid, TRIM(u.name) AS "fromusername" FROM messages m JOIN users u ON m.fromuserid = u.id WHERE m.togroupid IN ( SELECT groupid FROM groupmembers WHERE userid = $1)', [userId])
+  const result = await pool.query<Message>('SELECT TRIM(m.id) as "id", TRIM(m.message) AS "msg", m.fromuserid AS "senderID", m.togroupid, TRIM(u.name) AS "fromusername" FROM messages m JOIN users u ON m.fromuserid = u.id WHERE m.togroupid IN ( SELECT groupid FROM groupmembers WHERE userid = $1)', [userId])
 
   // {
   //   id: 'd0a755d6-0744-4525-949d-f312d4839e53',
@@ -249,7 +252,7 @@ io.on('connection', async (socket) => {
 
   io.to(socket.id).emit("getMissedMessages", groupByArr)
 
-  const queryGroupIdsAndNamesAsArr = await client.query<{ id: string, name: string, chatType: "group" | "private" }>('Select id, TRIM(name) AS name, chat_type AS "chatType" from groups WHERE id IN (SELECT groupid FROM groupmembers WHERE userid = $1) ORDER BY create_at_utc DESC', [userId]);
+  const queryGroupIdsAndNamesAsArr = await pool.query<{ id: string, name: string, chatType: "group" | "private" }>('Select id, TRIM(name) AS name, chat_type AS "chatType" from groups WHERE id IN (SELECT groupid FROM groupmembers WHERE userid = $1) ORDER BY create_at_utc DESC', [userId]);
 
   // console.log(queryGroupIdsAndNamesAsArr.rows)
 
@@ -280,7 +283,7 @@ io.on('connection', async (socket) => {
       // cryptoId, msg, id (user id), selectedGroup (group id) (kinda), sent_at_utc
 
       if (initialWait <= 4000) {
-        await client.query('INSERT INTO "messages" VALUES ($1, $2, $3, $4, $5)', [cryptoId, msg, id, selectedGroup, getTimeStamp()])
+        await pool.query('INSERT INTO "messages" VALUES ($1, $2, $3, $4, $5)', [cryptoId, msg, id, selectedGroup, getTimeStamp()])
         // console.log("inserted successfully! ")
         io.to(selectedGroup).emit("message", sender, id, msg, selectedGroup)
       }
@@ -302,12 +305,12 @@ io.on('connection', async (socket) => {
 
   socket.on("createPvtConvo", async (fromId, fromName, toId, toName) => {
     const theDate = getTimeStamp()
-    const groupId = await client.query<{ id: string }>("INSERT INTO groups (name, chat_type, create_at_utc) VALUES ($1, 'private', $2) RETURNING id", [`${fromName},${toName}`, theDate])
+    const groupId = await pool.query<{ id: string }>("INSERT INTO groups (name, chat_type, create_at_utc) VALUES ($1, 'private', $2) RETURNING id", [`${fromName},${toName}`, theDate])
     // INSERT INTO groupmembers VALUES (4, 1, '2025-02-09 12:17:00', '2025-02-09 12:17:00')
     // console.log("the group id is")
     // console.log(groupId.rows[0].id) 
-    await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [groupId.rows[0].id, fromId, theDate, theDate])
-    await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [groupId.rows[0].id, toId, theDate, theDate])
+    await pool.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [groupId.rows[0].id, fromId, theDate, theDate])
+    await pool.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [groupId.rows[0].id, toId, theDate, theDate])
 
     io.to(`Client${fromId}`).emit("makeClientJoinRoom", groupId.rows[0].id, `${fromName},${toName}`, "private")
     io.to(`Client${toId}`).emit("makeClientJoinRoom", groupId.rows[0].id, `${fromName},${toName}`, "private")
@@ -315,16 +318,16 @@ io.on('connection', async (socket) => {
 
   socket.on("createGroup", async (groupName, fromUserId) => {
     const theDate = getTimeStamp()
-    const newGroupId = await client.query<{ id: string }>("INSERT INTO groups (name, chat_type, create_at_utc) VALUES ($1, $2, $3) RETURNING id", [groupName, "group", theDate])
+    const newGroupId = await pool.query<{ id: string }>("INSERT INTO groups (name, chat_type, create_at_utc) VALUES ($1, $2, $3) RETURNING id", [groupName, "group", theDate])
     // console.log(newGroupId.rows[0].id)
-    await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [newGroupId.rows[0].id, fromUserId, theDate, theDate])
+    await pool.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [newGroupId.rows[0].id, fromUserId, theDate, theDate])
 
     io.to(`Client${fromUserId}`).emit("makeClientJoinRoom", newGroupId.rows[0].id, groupName, "group")
   })
 
   socket.on("inviteUserToGroup", async (groupId, userId, groupName) => {
     const theDate = getTimeStamp()
-    await client.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [Number(groupId), Number(userId), theDate, theDate])
+    await pool.query("INSERT INTO groupmembers VALUES ($1, $2, $3, $4)", [Number(groupId), Number(userId), theDate, theDate])
     io.to(`Client${userId}`).emit("makeClientJoinRoom", groupId, groupName, "group")
   })
 
