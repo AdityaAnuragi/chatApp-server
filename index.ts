@@ -46,6 +46,8 @@ const client = new Pool({
   // ssl: true
 
   connectionString: process.env.connectionString,
+  min: 1,
+  max: 10,
   ssl: true
 
 })
@@ -87,7 +89,7 @@ app.post('/users', async function (req, res) {
   try {
     result = await client.query<{ id: number, name: string }>("SELECT id, TRIM(name) as name FROM users WHERE name ILIKE $1 ORDER BY id", [`%${req.body.search}%`])
   }
-  catch(e) {
+  catch (e) {
     console.log("users")
     console.log(e)
     res.sendStatus(500)
@@ -104,7 +106,7 @@ app.post("/signup", async (req, res) => {
     result = await client.query<{ count: string }>("SELECT count(*) FROM users WHERE name = $1", [req.body.name])
 
   }
-  catch(e) {
+  catch (e) {
     console.log("sign up")
     console.log(e)
     res.sendStatus(500)
@@ -135,7 +137,7 @@ app.post("/signin", async (req, res) => {
   try {
     result = await client.query<{ id: string, salt: string, hash: string }>("SELECT id, TRIM(salt) as salt, TRIM(hash) as hash FROM users WHERE name = $1", [req.body.name])
   }
-  catch(e) {
+  catch (e) {
     console.log("sign in")
     console.log(e)
     res.sendStatus(500)
