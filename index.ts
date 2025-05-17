@@ -64,16 +64,7 @@ pool.on('error', (err) => {
   console.log(err)
 })
 
-// TODO - 
-// 1) change the types, server just sends an  any[]
 
-// 2) properly send the data and also use it properly on the frontend
-// await client.connect().then(client => {
-
-// }).catch(e => {
-//   console.log("There was an error connection to the DB")
-//   console.error(e)
-// })
 
 
 // client.on("end", () => {
