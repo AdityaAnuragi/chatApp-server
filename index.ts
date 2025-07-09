@@ -58,7 +58,7 @@ app.use(cors())
 app.use(bodyParser.json())
 
 const result = await pool.query("Select * from users")
-console.log(result)
+// console.log(result)
 pool.on('error', (err) => {
   console.log('client error event triggered')
   console.log(err)
@@ -84,7 +84,7 @@ app.post('/users', async function (req, res) {
     result = await pool.query<{ id: number, name: string }>("SELECT id, TRIM(name) as name FROM users WHERE name ILIKE $1 ORDER BY id", [`%${req.body.search}%`])
   }
   catch (e) {
-    console.log("users")
+    console.log("/users error")
     console.log(e)
     res.sendStatus(500)
   }
@@ -101,7 +101,7 @@ app.post("/signup", async (req, res) => {
 
   }
   catch (e) {
-    console.log("sign up")
+    console.log("/signup error")
     console.log(e)
     res.sendStatus(500)
   }
@@ -122,7 +122,7 @@ app.post("/signup", async (req, res) => {
 })
 
 app.post("/signin", async (req, res) => {
-  console.log(req.body.name)
+  // console.log(req.body.name)
   let result: pg.QueryResult<{
     id: string;
     salt: string;
@@ -132,7 +132,7 @@ app.post("/signin", async (req, res) => {
     result = await pool.query<{ id: string, salt: string, hash: string }>("SELECT id, TRIM(salt) as salt, TRIM(hash) as hash FROM users WHERE name = $1", [req.body.name])
   }
   catch (e) {
-    console.log("sign in")
+    console.log("/signin error")
     console.log(e)
     res.sendStatus(500)
   }
@@ -290,7 +290,7 @@ io.on('connection', async (socket) => {
   });
 
   socket.on("joinRoom", (roomName) => {
-    console.log(`socket attempting to join ${roomName}`)
+    // console.log(`socket attempting to join ${roomName}`)
     socket.join(roomName)
   })
 
