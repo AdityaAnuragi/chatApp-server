@@ -57,7 +57,7 @@ let number = 0;
 app.use(cors())
 app.use(bodyParser.json())
 
-const result = await pool.query("Select * from users")
+// const result = await pool.query("Select * from users")
 // console.log(result)
 pool.on('error', (err) => {
   console.log('client error event triggered')
