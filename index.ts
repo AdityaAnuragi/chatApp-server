@@ -326,9 +326,10 @@ io.on('connection', async (socket) => {
 
 setInterval(() => {
   fetch("https://chatapp-server-t5k6.onrender.com/health")
-}, 1000 * 60 * 10);
+}, 1000 * 30);
 
 app.get("/health", (req, res) => {
+  console.log("Health check")
   res.sendStatus(200)
 })
 
